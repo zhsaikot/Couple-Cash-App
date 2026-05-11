@@ -1,0 +1,81 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isMemberOfCouple(coupleId) {
+      return isSignedIn() && exists(/databases/$(database)/documents/couples/$(coupleId)) && 
+             request.auth.uid in get(/databases/$(database)/documents/couples/$(coupleId)).data.members;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- Entity Specific Helpers ---
+
+    function isValidTransaction(data) {
+      return data.amount is number 
+        && data.type in ['income', 'expense']
+        && data.category is string 
+        && data.date is string
+        && data.coupleId is string;
+    }
+
+    function isValidDebt(data) {
+      return data.totalAmount is number 
+        && data.remainingAmount is number
+        && data.lenderId is string
+        && data.borrowerId is string
+        && data.coupleId is string;
+    }
+
+    // --- Rules ---
+
+    // Users
+    match /users/{userId} {
+      allow get, list: if isSignedIn();
+      allow create, update: if isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Couples
+    match /couples/{coupleId} {
+      allow get, list: if isSignedIn() && (request.auth.uid in resource.data.members);
+      allow create: if isSignedIn() && (request.auth.uid in incoming().members);
+      allow update: if isSignedIn() && (request.auth.uid in resource.data.members);
+    }
+
+    // Transactions
+    match /couples/{coupleId}/transactions/{transactionId} {
+      allow read: if isMemberOfCouple(coupleId);
+      allow create: if isMemberOfCouple(coupleId) && isValidTransaction(incoming());
+      allow update: if isMemberOfCouple(coupleId);
+      allow delete: if isMemberOfCouple(coupleId);
+    }
+
+    // Debts
+    match /couples/{coupleId}/debts/{debtId} {
+      allow read: if isMemberOfCouple(coupleId);
+      allow create: if isMemberOfCouple(coupleId) && isValidDebt(incoming());
+      allow update: if isMemberOfCouple(coupleId);
+      allow delete: if isMemberOfCouple(coupleId);
+
+      // Repayments Subcollection
+      match /repayments/{repaymentId} {
+        allow read, create, delete: if isMemberOfCouple(coupleId);
+      }
+    }
+  }
+}

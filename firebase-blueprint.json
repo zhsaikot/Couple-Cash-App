@@ -1,0 +1,98 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile and partnership information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "partnerId": { "type": "string", "description": "UID of the partner" },
+        "coupleId": { "type": "string", "description": "ID of the shared couple document" },
+        "inviteCode": { "type": "string", "description": "Unique code for partnership invites" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email"]
+    },
+    "Couple": {
+      "title": "Couple",
+      "description": "Shared settings and members of a couple",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "members": { "type": "array", "description": "List of user UIDs" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "currency": { "type": "string", "description": "Shared currency (e.g., USD)" }
+      },
+      "required": ["id", "members"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "An income or expense entry",
+      "type": "object",
+      "properties": {
+        "amount": { "type": "number" },
+        "type": { "type": "string", "enum": ["income", "expense"] },
+        "category": { "type": "string" },
+        "description": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "userId": { "type": "string", "description": "Who created the transaction" },
+        "coupleId": { "type": "string" }
+      },
+      "required": ["amount", "type", "category", "date", "userId", "coupleId"]
+    },
+    "Debt": {
+      "title": "Debt",
+      "description": "Shared debt tracking",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "totalAmount": { "type": "number" },
+        "remainingAmount": { "type": "number" },
+        "lenderId": { "type": "string", "description": "UID of who is owed" },
+        "borrowerId": { "type": "string", "description": "UID of who owes" },
+        "status": { "type": "string", "enum": ["active", "paid"] },
+        "coupleId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "totalAmount", "remainingAmount", "lenderId", "borrowerId", "status", "coupleId"]
+    },
+    "Repayment": {
+      "title": "Repayment",
+      "description": "History of debt repayments",
+      "type": "object",
+      "properties": {
+        "debtId": { "type": "string" },
+        "amount": { "type": "number" },
+        "date": { "type": "string", "format": "date-time" },
+        "userId": { "type": "string", "description": "Who made the repayment" }
+      },
+      "required": ["debtId", "amount", "date", "userId"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Private user profile"
+    },
+    "/couples/{coupleId}": {
+      "schema": "Couple",
+      "description": "Shared couple metadata"
+    },
+    "/couples/{coupleId}/transactions/{transactionId}": {
+      "schema": "Transaction",
+      "description": "Shared transactions for a couple"
+    },
+    "/couples/{coupleId}/debts/{debtId}": {
+      "schema": "Debt",
+      "description": "Shared debts for a couple"
+    },
+    "/couples/{coupleId}/debts/{debtId}/repayments/{repaymentId}": {
+      "schema": "Repayment",
+      "description": "Payment history for a debt"
+    }
+  }
+}
