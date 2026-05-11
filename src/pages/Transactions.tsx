@@ -35,25 +35,29 @@ export function Transactions({ user }: { user: User }) {
 
     try {
       const userName = user.displayName || user.email?.split('@')[0] || 'Unknown';
+      const selectedDate = new Date(formData.date);
+      const now = new Date();
+      // Keep the time if we are editing and it exists, or use current time if creating
+      selectedDate.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
+      const isoDate = selectedDate.toISOString();
+
       if (editingId) {
-        const path = `couples/${coupleId}/transactions/${editingId}`;
         await updateDoc(doc(db, 'couples', coupleId, 'transactions', editingId), {
           amount: parseFloat(formData.amount),
           type: formData.type,
           category: formData.category,
           description: formData.description,
-          date: new Date(formData.date).toISOString(),
-          userName, // Update name in case it changed
+          date: isoDate,
+          userName, 
           updatedAt: serverTimestamp()
         });
       } else {
-        const path = `couples/${coupleId}/transactions`;
         await addDoc(collection(db, 'couples', coupleId, 'transactions'), {
           amount: parseFloat(formData.amount),
           type: formData.type,
           category: formData.category,
           description: formData.description,
-          date: new Date(formData.date).toISOString(),
+          date: isoDate,
           userId: user.uid,
           userName,
           coupleId,

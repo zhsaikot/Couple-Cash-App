@@ -8,7 +8,7 @@ import { cn } from '../lib/utils';
 
 export function Dashboard({ user }: { user: User }) {
   const { coupleId, couple, loading: coupleLoading } = useCoupleData(user);
-  const { transactions: recentTransactions, loading: transLoading } = useTransactions(coupleId, 5);
+  const { transactions: recentTransactions, loading: transLoading } = useTransactions(coupleId, 11);
   const { transactions: allTransactions } = useTransactions(coupleId, 1000); // Fetch more for balance calc
 
   if (coupleLoading) return null;
@@ -150,34 +150,45 @@ export function Dashboard({ user }: { user: User }) {
               Awaiting first transaction...
             </div>
           ) : (
-            recentTransactions.map((t, i) => (
-              <motion.div 
-                key={t.id}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.05 }}
-                className="flex items-center justify-between p-5 bg-white dark:bg-[#18181B] rounded-3xl border border-transparent shadow-sm hover:border-slate-200 dark:hover:border-[#27272A] transition-all"
-              >
-                <div className="flex items-center gap-4">
+            <>
+              {recentTransactions.slice(0, 10).map((t, i) => (
+                <motion.div 
+                  key={t.id}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: i * 0.05 }}
+                  className="flex items-center justify-between p-5 bg-white dark:bg-[#18181B] rounded-3xl border border-transparent shadow-sm hover:border-slate-200 dark:hover:border-[#27272A] transition-all"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className={cn(
+                      "w-12 h-12 rounded-[1.25rem] flex items-center justify-center",
+                      t.type === 'income' ? "bg-[#34D399]/10 text-[#34D399]" : "bg-[#F43F5E]/10 text-[#F43F5E]"
+                    )}>
+                      {t.type === 'income' ? <ArrowUpRight className="w-6 h-6" /> : <ArrowDownRight className="w-6 h-6" />}
+                    </div>
+                    <div>
+                      <div className="font-bold text-sm tracking-tight">{t.category}</div>
+                      <div className="text-[10px] text-[#71717A] font-bold uppercase tracking-widest mt-1">{format(new Date(t.date), 'MMMM dd, yyyy')}</div>
+                    </div>
+                  </div>
                   <div className={cn(
-                    "w-12 h-12 rounded-[1.25rem] flex items-center justify-center",
-                    t.type === 'income' ? "bg-[#34D399]/10 text-[#34D399]" : "bg-[#F43F5E]/10 text-[#F43F5E]"
+                    "font-black tracking-tight tabular-nums",
+                    t.type === 'income' ? "text-[#34D399]" : "text-[#F43F5E]"
                   )}>
-                    {t.type === 'income' ? <ArrowUpRight className="w-6 h-6" /> : <ArrowDownRight className="w-6 h-6" />}
+                    {t.type === 'income' ? '+' : '-'}{currency}{t.amount.toLocaleString()}
                   </div>
-                  <div>
-                    <div className="font-bold text-sm tracking-tight">{t.category}</div>
-                    <div className="text-[10px] text-[#71717A] font-bold uppercase tracking-widest mt-1">{format(new Date(t.date), 'MMMM dd, yyyy')}</div>
-                  </div>
-                </div>
-                <div className={cn(
-                  "font-black tracking-tight tabular-nums",
-                  t.type === 'income' ? "text-[#34D399]" : "text-[#F43F5E]"
-                )}>
-                  {t.type === 'income' ? '+' : '-'}{currency}{t.amount.toLocaleString()}
-                </div>
-              </motion.div>
-            ))
+                </motion.div>
+              ))}
+              
+              {recentTransactions.length > 10 && (
+                <Link 
+                  to="/transactions" 
+                  className="w-full py-4 flex items-center justify-center gap-2 border border-slate-100 dark:border-[#27272A] bg-white dark:bg-[#18181B] rounded-2xl text-[10px] font-black uppercase tracking-widest text-[#38BDF8] hover:bg-slate-50 dark:hover:bg-[#09090B] transition-all"
+                >
+                  Show more records
+                </Link>
+              )}
+            </>
           )}
         </div>
       </section>
