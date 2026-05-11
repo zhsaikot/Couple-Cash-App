@@ -25,7 +25,8 @@
         "name": { "type": "string" },
         "members": { "type": "array", "description": "List of user UIDs" },
         "createdAt": { "type": "string", "format": "date-time" },
-        "currency": { "type": "string", "description": "Shared currency (e.g., USD)" }
+        "currency": { "type": "string", "description": "Shared currency (e.g., USD)" },
+        "initialBalance": { "type": "number", "description": "Initial balance to start the calculation from" }
       },
       "required": ["id", "members"]
     },

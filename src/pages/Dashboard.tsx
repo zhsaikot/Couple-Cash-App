@@ -1,15 +1,69 @@
+import React, { useState, useEffect } from 'react';
 import { User } from 'firebase/auth';
 import { useCoupleData, useTransactions } from '../lib/hooks';
-import { motion } from 'motion/react';
-import { Plus, ArrowUpRight, ArrowDownRight, Wallet as WalletIcon, History as HistoryIcon, Users as UsersIcon, CreditCard as CreditCardIcon } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { 
+  Plus, 
+  ArrowUpRight, 
+  ArrowDownRight, 
+  Wallet as WalletIcon, 
+  History as HistoryIcon, 
+  Users as UsersIcon, 
+  CreditCard as CreditCardIcon,
+  Pencil,
+  Check,
+  X
+} from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
 import { cn } from '../lib/utils';
+import { db } from '../lib/firebase';
+import { doc, updateDoc } from 'firebase/firestore';
+import { handleFirestoreError, OperationType } from '../lib/errorUtils';
 
 export function Dashboard({ user }: { user: User }) {
   const { coupleId, couple, loading: coupleLoading } = useCoupleData(user);
   const { transactions: recentTransactions, loading: transLoading } = useTransactions(coupleId, 11);
   const { transactions: allTransactions } = useTransactions(coupleId, 1000); // Fetch more for balance calc
+  
+  const [isEditingInitial, setIsEditingInitial] = useState(false);
+  const [initialInput, setInitialInput] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Individual Breakdown logic
+  const members = couple?.members || [];
+  
+  // These need to be calculated before the save function to use in calculation
+  const totalIncome = allTransactions.filter(t => t.type === 'income').reduce((acc, t) => acc + t.amount, 0);
+  const totalExpense = allTransactions.filter(t => t.type === 'expense').reduce((acc, t) => acc + t.amount, 0);
+  const initialBalance = couple?.initialBalance || 0;
+  const balance = initialBalance + totalIncome - totalExpense;
+  const currency = couple?.currency || '৳';
+
+  const handleSaveInitial = async () => {
+    if (!coupleId) return;
+    setIsSaving(true);
+    try {
+      const targetBalance = parseFloat(initialInput) || 0;
+      // We want: targetBalance = newInitialBalance + totalIncome - totalExpense
+      // So: newInitialBalance = targetBalance - (totalIncome - totalExpense)
+      const newInitialBalance = targetBalance - (totalIncome - totalExpense);
+
+      await updateDoc(doc(db, 'couples', coupleId), {
+        initialBalance: newInitialBalance
+      });
+      setIsEditingInitial(false);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `couples/${coupleId}`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleStartEditing = () => {
+    setInitialInput(balance.toString());
+    setIsEditingInitial(true);
+  };
 
   if (coupleLoading) return null;
 
@@ -33,13 +87,7 @@ export function Dashboard({ user }: { user: User }) {
     );
   }
 
-  const totalIncome = allTransactions.filter(t => t.type === 'income').reduce((acc, t) => acc + t.amount, 0);
-  const totalExpense = allTransactions.filter(t => t.type === 'expense').reduce((acc, t) => acc + t.amount, 0);
-  const balance = totalIncome - totalExpense;
-  const currency = couple?.currency || '৳';
-
   // Individual Breakdown logic
-  const members = couple?.members || [];
   const memberSpending = members.map((uid: string) => {
     const userTransactions = allTransactions.filter(t => t.userId === uid && t.type === 'expense');
     const total = userTransactions.reduce((acc, t) => acc + t.amount, 0);
@@ -68,14 +116,70 @@ export function Dashboard({ user }: { user: User }) {
 
       {/* Balance Card - Gradient Theme */}
       <section className="gradient-card p-10 relative overflow-hidden">
-         <div className="absolute top-0 right-0 p-8 opacity-5">
+         <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none">
             <WalletIcon size={140} />
          </div>
-         <div className="absolute -top-20 -right-20 w-40 h-40 bg-[#38BDF8] opacity-10 blur-[80px]"></div>
+         <div className="absolute -top-20 -right-20 w-40 h-40 bg-[#38BDF8] opacity-10 blur-[80px] pointer-events-none"></div>
          
-         <span className="text-[#94A3B8] text-[10px] font-bold uppercase tracking-[0.15em]">Total Household Balance</span>
-         <div className="text-4xl font-bold mt-2 mb-10 tracking-tighter tabular-nums text-white">
-            {currency}{balance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+         <div className="flex items-center justify-between relative z-10">
+            <span className="text-[#94A3B8] text-[10px] font-bold uppercase tracking-[0.15em]">Total Household Balance</span>
+            <button 
+              type="button"
+              onClick={handleStartEditing}
+              className="p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors text-white/40 hover:text-white"
+              title="Edit Total Balance"
+            >
+              <Pencil className="w-3 h-3" />
+            </button>
+         </div>
+         
+         <div className="mt-2 mb-10 relative z-10">
+            <AnimatePresence mode="wait">
+               {isEditingInitial ? (
+                 <motion.div 
+                   key="edit-initial"
+                   initial={{ opacity: 0, y: 10 }}
+                   animate={{ opacity: 1, y: 0 }}
+                   exit={{ opacity: 0, y: -10 }}
+                   className="flex items-center gap-2"
+                 >
+                   <div className="relative flex-1">
+                      <input 
+                        type="number"
+                        value={initialInput}
+                        onChange={(e) => setInitialInput(e.target.value)}
+                        autoFocus
+                        className="w-full bg-black/20 border border-white/20 rounded-xl p-3 pl-8 text-xl font-bold text-white focus:outline-none focus:ring-2 focus:ring-[#38BDF8]"
+                      />
+                      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 font-bold">{currency}</div>
+                   </div>
+                   <button 
+                     type="button"
+                     onClick={handleSaveInitial}
+                     disabled={isSaving}
+                     className="w-12 h-12 bg-[#34D399] text-white rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/20 active:scale-95 disabled:opacity-50"
+                   >
+                     <Check className="w-5 h-5" />
+                   </button>
+                   <button 
+                     type="button"
+                     onClick={() => setIsEditingInitial(false)}
+                     className="w-12 h-12 bg-white/10 text-white rounded-xl flex items-center justify-center active:scale-95"
+                   >
+                     <X className="w-5 h-5" />
+                   </button>
+                 </motion.div>
+               ) : (
+                 <motion.div 
+                   key="display-balance"
+                   initial={{ opacity: 0 }}
+                   animate={{ opacity: 1 }}
+                   className="text-4xl font-bold tracking-tighter tabular-nums text-white"
+                 >
+                    {currency}{balance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                 </motion.div>
+               )}
+            </AnimatePresence>
          </div>
          
          <div className="grid grid-cols-2 gap-4">
