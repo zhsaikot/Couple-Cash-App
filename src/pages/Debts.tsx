@@ -1,16 +1,171 @@
 import React, { useState } from 'react';
 import { User } from 'firebase/auth';
-import { useCoupleData, useDebts } from '../lib/hooks';
+import { useCoupleData, useDebts, useRepayments } from '../lib/hooks';
 import { db } from '../lib/firebase';
 import { collection, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../lib/errorUtils';
 import { motion, AnimatePresence } from 'motion/react';
-import { Plus, X, CreditCard as CreditCardIcon, ArrowRight, CheckCircle2, History as HistoryIcon, Pencil, Trash2 } from 'lucide-react';
+import { Plus, X, CreditCard as CreditCardIcon, ArrowRight, CheckCircle2, History as HistoryIcon, Pencil, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { cn } from '../lib/utils';
+
+function RepaymentHistory({ coupleId, debtId, currency }: { coupleId: string, debtId: string, currency: string }) {
+  const { repayments, loading } = useRepayments(coupleId, debtId);
+
+  if (loading) return <div className="text-[10px] text-slate-400 animate-pulse">Loading history...</div>;
+  if (repayments.length === 0) return null;
+
+  return (
+    <div className="mt-4 space-y-2 border-t border-slate-100 dark:border-[#27272A] pt-4">
+      <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-[#71717A] mb-2 flex items-center gap-2">
+        <HistoryIcon className="w-3 h-3" /> Payment History
+      </h4>
+      <div className="space-y-2 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
+        {repayments.map((r) => (
+          <div key={r.id} className="flex justify-between items-center text-[10px] font-medium">
+            <div className="flex flex-col">
+              <span className="text-slate-900 dark:text-zinc-200">{r.userName || 'Someone'} paid</span>
+              <span className="text-slate-400 text-[8px]">{new Date(r.date).toLocaleDateString()}</span>
+            </div>
+            <div className="text-emerald-500 font-bold tabular-nums">
+              {currency}{r.amount.toLocaleString()}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DebtItem({ 
+  d, 
+  i, 
+  user, 
+  coupleId, 
+  partner, 
+  onEdit, 
+  onDelete, 
+  onRepay, 
+  isRepaying, 
+  setIsRepaying, 
+  repayAmount, 
+  setRepayAmount,
+  currency
+}: any) {
+  const isOwedToMe = d.lenderId === user.uid;
+  const [showHistory, setShowHistory] = useState(false);
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: i * 0.05 }}
+      className={cn(
+        "p-8 bg-white dark:bg-[#18181B] rounded-3xl border transition-all relative overflow-hidden",
+        d.status === 'paid' ? "border-transparent opacity-40 shadow-none" : "border-slate-100 dark:border-[#27272A] shadow-xl"
+      )}
+    >
+      {d.status === 'paid' && <div className="absolute top-4 right-4"><CheckCircle2 className="w-6 h-6 text-[#34D399]" /></div>}
+      
+      <div className="flex justify-between items-start mb-6">
+         <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <h3 className="font-bold text-lg tracking-tight text-slate-900 dark:text-[#FAFAFA]">{d.title}</h3>
+              <div className="flex items-center gap-1 ml-2">
+                 <button 
+                   onClick={() => onEdit(d)}
+                   className="p-2 text-[#71717A] hover:text-[#38BDF8] transition-colors"
+                 >
+                   <Pencil className="w-4 h-4" />
+                 </button>
+                 <button 
+                   onClick={() => onDelete(d.id)}
+                   className="p-2 text-[#71717A] hover:text-[#F43F5E] transition-colors"
+                 >
+                   <Trash2 className="w-4 h-4" />
+                 </button>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.1em] text-[#71717A] mt-2">
+              {isOwedToMe ? <span className="text-[#34D399]">RECEIVABLE</span> : <span className="text-[#F43F5E]">PAYABLE</span>}
+              <ArrowRight className="w-3 h-3" />
+              <span className="text-slate-400 dark:text-[#A1A1AA]">PARTNER</span>
+              <span className="ml-auto text-[8px] opacity-70">BY {d.userName || 'SYSTEM'}</span>
+            </div>
+         </div>
+          <div className="text-right">
+            <div className="text-2xl font-black tabular-nums tracking-tighter text-slate-900 dark:text-white">{currency}{d.remainingAmount.toLocaleString()}</div>
+            <div className="text-[10px] text-slate-400 dark:text-[#A1A1AA] font-bold uppercase tracking-widest mt-1">OF {currency}{d.totalAmount.toLocaleString()}</div>
+         </div>
+      </div>
+
+      <div className="w-full bg-slate-100 dark:bg-[#09090B] px-1 py-1 rounded-full mb-6 overflow-hidden">
+         <motion.div 
+           initial={{ width: 0 }}
+           animate={{ width: `${((d.totalAmount - d.remainingAmount) / d.totalAmount) * 100}%` }}
+           className="h-1.5 bg-[#38BDF8] rounded-full shadow-[0_0_8px_rgba(56,189,248,0.5)]"
+         />
+      </div>
+
+      <div className="flex flex-col gap-2">
+        {d.status !== 'paid' && (
+          <button 
+            onClick={() => setIsRepaying(d.id)}
+            className="w-full py-4 bg-slate-50 dark:bg-[#09090B] border border-slate-200 dark:border-[#27272A] hover:border-[#38BDF8] rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 group text-slate-500 dark:text-[#A1A1AA]"
+          >
+            <Plus className="w-4 h-4 text-[#38BDF8] group-hover:scale-125 transition-transform" /> Add Payment
+          </button>
+        )}
+        
+        <button 
+          onClick={() => setShowHistory(!showHistory)}
+          className="w-full py-2 text-[8px] font-black uppercase tracking-[0.2em] text-slate-400 hover:text-slate-600 dark:text-[#525252] dark:hover:text-zinc-400 transition-colors flex items-center justify-center gap-1"
+        >
+          {showHistory ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+          {showHistory ? 'Hide' : 'Show'} Payment History
+        </button>
+      </div>
+
+      <AnimatePresence>
+        {isRepaying === d.id && (
+          <motion.div 
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="mt-6 pt-6 border-t border-slate-200 dark:border-[#27272A] space-y-4"
+          >
+            <div className="relative">
+              <input 
+                type="number"
+                autoFocus
+                value={repayAmount}
+                onChange={(e) => setRepayAmount(e.target.value)}
+                placeholder="Amount to pay"
+                className="w-full bg-slate-50 dark:bg-[#09090B] border border-slate-200 dark:border-[#27272A] rounded-xl p-4 pl-10 text-sm font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-[#38BDF8]"
+              />
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-lg text-slate-400 dark:text-[#71717A]">{currency}</div>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setIsRepaying(null)} className="flex-1 py-4 text-[10px] font-black tracking-widest text-slate-400 dark:text-[#71717A] uppercase transition-colors hover:text-slate-900 dark:hover:text-white">Cancel</button>
+              <button 
+                onClick={() => onRepay(d.id, d.remainingAmount)}
+                className="flex-[2] py-4 bg-[#38BDF8] text-white dark:text-[#09090B] rounded-2xl text-[10px] font-black tracking-widest uppercase shadow-lg shadow-sky-500/10"
+              >Execute payment</button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {showHistory && coupleId && (
+        <RepaymentHistory coupleId={coupleId} debtId={d.id} currency={currency} />
+      )}
+    </motion.div>
+  );
+}
 
 export function Debts({ user }: { user: User }) {
   const { coupleId, couple } = useCoupleData(user);
   const { debts } = useDebts(coupleId);
+  const currency = couple?.currency || '৳';
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isRepaying, setIsRepaying] = useState<string | null>(null);
@@ -169,7 +324,7 @@ export function Debts({ user }: { user: User }) {
                       placeholder="0.00"
                       className="w-full bg-slate-50 dark:bg-[#09090B] border border-slate-200 dark:border-[#27272A] rounded-2xl p-5 pl-12 text-3xl font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-[#F43F5E]"
                     />
-                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-bold text-slate-400 dark:text-[#71717A]">৳</div>
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-bold text-slate-400 dark:text-[#71717A]">{currency}</div>
                   </div>
                   <div className="space-y-3">
                     <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 dark:text-[#71717A] ml-1">Who is the borrower?</label>
@@ -205,104 +360,24 @@ export function Debts({ user }: { user: User }) {
              <p className="font-bold text-sm tracking-tight text-slate-500">No shared debts recorded.</p>
           </div>
         ) : (
-          debts.map((d, i) => {
-            const isOwedToMe = d.lenderId === user.uid;
-            return (
-              <motion.div 
-                key={d.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.05 }}
-                className={cn(
-                  "p-8 bg-white dark:bg-[#18181B] rounded-3xl border transition-all relative overflow-hidden",
-                  d.status === 'paid' ? "border-transparent opacity-40 shadow-none" : "border-slate-100 dark:border-[#27272A] shadow-xl"
-                )}
-              >
-                {d.status === 'paid' && <div className="absolute top-4 right-4"><CheckCircle2 className="w-6 h-6 text-[#34D399]" /></div>}
-                
-                <div className="flex justify-between items-start mb-6">
-                   <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-bold text-lg tracking-tight text-slate-900 dark:text-[#FAFAFA]">{d.title}</h3>
-                        <div className="flex items-center gap-1 ml-2">
-                           <button 
-                             onClick={() => handleEdit(d)}
-                             className="p-2 text-[#71717A] hover:text-[#38BDF8] transition-colors"
-                           >
-                             <Pencil className="w-4 h-4" />
-                           </button>
-                           <button 
-                             onClick={() => handleDelete(d.id)}
-                             className="p-2 text-[#71717A] hover:text-[#F43F5E] transition-colors"
-                           >
-                             <Trash2 className="w-4 h-4" />
-                           </button>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.1em] text-[#71717A] mt-2">
-                        {isOwedToMe ? <span className="text-[#34D399]">RECEIVABLE</span> : <span className="text-[#F43F5E]">PAYABLE</span>}
-                        <ArrowRight className="w-3 h-3" />
-                        <span className="text-slate-400 dark:text-[#A1A1AA]">PARTNER</span>
-                        <span className="ml-auto text-[8px] opacity-70">BY {d.userName || 'SYSTEM'}</span>
-                      </div>
-                   </div>
-                    <div className="text-right">
-                      <div className="text-2xl font-black tabular-nums tracking-tighter text-slate-900 dark:text-white">৳{d.remainingAmount.toLocaleString()}</div>
-                      <div className="text-[10px] text-slate-400 dark:text-[#A1A1AA] font-bold uppercase tracking-widest mt-1">OF ৳{d.totalAmount.toLocaleString()}</div>
-                   </div>
-                </div>
-
-                <div className="w-full bg-slate-100 dark:bg-[#09090B] px-1 py-1 rounded-full mb-8 overflow-hidden">
-                   <motion.div 
-                     initial={{ width: 0 }}
-                     animate={{ width: `${((d.totalAmount - d.remainingAmount) / d.totalAmount) * 100}%` }}
-                     className="h-1.5 bg-[#38BDF8] rounded-full shadow-[0_0_8px_rgba(56,189,248,0.5)]"
-                   />
-                </div>
-
-                {d.status !== 'paid' && (
-                  <div className="flex gap-2">
-                    <button 
-                      onClick={() => setIsRepaying(d.id)}
-                      className="w-full py-4 bg-slate-50 dark:bg-[#09090B] border border-slate-200 dark:border-[#27272A] hover:border-[#38BDF8] rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 group text-slate-500 dark:text-[#A1A1AA]"
-                    >
-                      <Plus className="w-4 h-4 text-[#38BDF8] group-hover:scale-125 transition-transform" /> Add Payment
-                    </button>
-                  </div>
-                )}
-
-                <AnimatePresence>
-                  {isRepaying === d.id && (
-                    <motion.div 
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      className="mt-6 pt-6 border-t border-slate-200 dark:border-[#27272A] space-y-4"
-                    >
-                      <div className="relative">
-                        <input 
-                          type="number"
-                          autoFocus
-                          value={repayAmount}
-                          onChange={(e) => setRepayAmount(e.target.value)}
-                          placeholder="Amount to pay"
-                          className="w-full bg-slate-50 dark:bg-[#09090B] border border-slate-200 dark:border-[#27272A] rounded-xl p-4 pl-10 text-sm font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-[#38BDF8]"
-                        />
-                        <div className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-lg text-slate-400 dark:text-[#71717A]">৳</div>
-                      </div>
-                      <div className="flex gap-3">
-                        <button onClick={() => setIsRepaying(null)} className="flex-1 py-4 text-[10px] font-black tracking-widest text-slate-400 dark:text-[#71717A] uppercase transition-colors hover:text-slate-900 dark:hover:text-white">Cancel</button>
-                        <button 
-                          onClick={() => handleRepay(d.id, d.remainingAmount)}
-                          className="flex-[2] py-4 bg-[#38BDF8] text-white dark:text-[#09090B] rounded-2xl text-[10px] font-black tracking-widest uppercase shadow-lg shadow-sky-500/10"
-                        >Execute payment</button>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </motion.div>
-            )
-          })
+          debts.map((d, i) => (
+            <DebtItem 
+              key={d.id}
+              d={d}
+              i={i}
+              user={user}
+              coupleId={coupleId}
+              partner={partner}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              onRepay={handleRepay}
+              isRepaying={isRepaying}
+              setIsRepaying={setIsRepaying}
+              repayAmount={repayAmount}
+              setRepayAmount={setRepayAmount}
+              currency={currency}
+            />
+          ))
         )}
       </div>
     </div>

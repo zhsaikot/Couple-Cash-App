@@ -9,6 +9,7 @@ import { Transactions } from './pages/Transactions';
 import { Debts } from './pages/Debts';
 import { Login } from './pages/Login';
 import { CoupleLink } from './pages/CoupleLink';
+import { Settings } from './pages/Settings';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function App() {
@@ -69,7 +70,7 @@ export default function App() {
   return (
     <div className="min-h-screen text-slate-900 dark:text-zinc-100 transition-colors duration-300">
       <BrowserRouter>
-        {user && <Navbar isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />}
+        {user && <Navbar />}
         <main className="container mx-auto px-4 pb-24 pt-6 max-w-lg">
           <AnimatePresence mode="wait">
             <Routes>
@@ -78,6 +79,7 @@ export default function App() {
               <Route path="/transactions" element={user ? <Transactions user={user} /> : <Navigate to="/login" />} />
               <Route path="/debts" element={user ? <Debts user={user} /> : <Navigate to="/login" />} />
               <Route path="/couple" element={user ? <CoupleLink user={user} /> : <Navigate to="/login" />} />
+              <Route path="/settings" element={user ? <Settings user={user} isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} /> : <Navigate to="/login" />} />
             </Routes>
           </AnimatePresence>
         </main>

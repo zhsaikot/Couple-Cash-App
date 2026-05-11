@@ -16,6 +16,7 @@ const CATEGORIES = [
 export function Transactions({ user }: { user: User }) {
   const { coupleId, couple } = useCoupleData(user);
   const { transactions } = useTransactions(coupleId);
+  const currency = couple?.currency || '৳';
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'me' | 'partner'>('all');
@@ -192,7 +193,7 @@ export function Transactions({ user }: { user: User }) {
                       placeholder="0.00"
                       className="w-full bg-slate-50 dark:bg-[#09090B] border border-slate-200 dark:border-[#27272A] rounded-2xl p-5 pl-12 text-3xl font-bold placeholder:text-slate-300 dark:placeholder:text-[#27272A] focus:ring-2 focus:ring-[#38BDF8] text-slate-900 dark:text-white"
                     />
-                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-bold text-slate-400 dark:text-[#71717A]">৳</div>
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-bold text-slate-400 dark:text-[#71717A]">{currency}</div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
@@ -274,7 +275,7 @@ export function Transactions({ user }: { user: User }) {
                   "font-black tracking-tight tabular-nums",
                   t.type === 'income' ? "text-[#34D399]" : "text-[#F43F5E]"
                 )}>
-                  {t.type === 'income' ? '+' : '-'}৳{t.amount.toLocaleString()}
+                  {t.type === 'income' ? '+' : '-'}{currency}{t.amount.toLocaleString()}
                 </div>
                 <div className="flex items-center gap-1 transition-opacity">
                   <button 

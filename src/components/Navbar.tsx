@@ -1,14 +1,12 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, ArrowLeftRight, CreditCard, Users, Moon, Sun } from 'lucide-react';
+import { Home, ArrowLeftRight, CreditCard, Users, Settings } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { motion } from 'motion/react';
 
 interface NavbarProps {
-  isDarkMode: boolean;
-  setIsDarkMode: (val: boolean) => void;
 }
 
-export function Navbar({ isDarkMode, setIsDarkMode }: NavbarProps) {
+export function Navbar() {
   const location = useLocation();
 
   const navItems = [
@@ -16,6 +14,7 @@ export function Navbar({ isDarkMode, setIsDarkMode }: NavbarProps) {
     { path: '/transactions', icon: ArrowLeftRight, label: 'Trans' },
     { path: '/debts', icon: CreditCard, label: 'Debts' },
     { path: '/couple', icon: Users, label: 'Partner' },
+    { path: '/settings', icon: Settings, label: 'Settings' },
   ];
 
   return (
@@ -43,13 +42,6 @@ export function Navbar({ isDarkMode, setIsDarkMode }: NavbarProps) {
           </Link>
         );
       })}
-      <button
-        onClick={() => setIsDarkMode(!isDarkMode)}
-        className="flex flex-col items-center gap-1 text-[#71717A] hover:text-white transition-all duration-200"
-      >
-        {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-        <span className="text-[10px] font-bold uppercase tracking-widest">{isDarkMode ? 'Light' : 'Dark'}</span>
-      </button>
     </nav>
   );
 }

@@ -36,6 +36,7 @@ export function Dashboard({ user }: { user: User }) {
   const totalIncome = allTransactions.filter(t => t.type === 'income').reduce((acc, t) => acc + t.amount, 0);
   const totalExpense = allTransactions.filter(t => t.type === 'expense').reduce((acc, t) => acc + t.amount, 0);
   const balance = totalIncome - totalExpense;
+  const currency = couple?.currency || '৳';
 
   // Individual Breakdown logic
   const members = couple?.members || [];
@@ -74,7 +75,7 @@ export function Dashboard({ user }: { user: User }) {
          
          <span className="text-[#94A3B8] text-[10px] font-bold uppercase tracking-[0.15em]">Total Household Balance</span>
          <div className="text-4xl font-bold mt-2 mb-10 tracking-tighter tabular-nums text-white">
-            ৳{balance.toLocaleString('en-BD', { minimumFractionDigits: 2 })}
+            {currency}{balance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
          </div>
          
          <div className="grid grid-cols-2 gap-4">
@@ -82,13 +83,13 @@ export function Dashboard({ user }: { user: User }) {
                 <div className="flex items-center gap-2 text-[#38BDF8] text-[10px] font-bold uppercase tracking-wider mb-2">
                     <ArrowUpRight className="w-3 h-3" /> Income
                 </div>
-                <div className="font-bold text-xl tabular-nums text-white">৳{totalIncome.toLocaleString()}</div>
+                <div className="font-bold text-xl tabular-nums text-white">{currency}{totalIncome.toLocaleString()}</div>
             </div>
             <div className="bg-black/20 p-4 rounded-2xl border border-white/5 backdrop-blur-sm">
                 <div className="flex items-center gap-2 text-[#818CF8] text-[10px] font-bold uppercase tracking-wider mb-2">
                     <ArrowDownRight className="w-3 h-3" /> Expense
                 </div>
-                <div className="font-bold text-xl tabular-nums text-white">৳{totalExpense.toLocaleString()}</div>
+                <div className="font-bold text-xl tabular-nums text-white">{currency}{totalExpense.toLocaleString()}</div>
             </div>
          </div>
       </section>
@@ -107,7 +108,7 @@ export function Dashboard({ user }: { user: User }) {
                 </div>
                 <span className="text-[10px] font-bold text-slate-400 truncate">{m.name.split(' ')[0]}</span>
               </div>
-              <div className="text-xl font-black text-slate-900 dark:text-white tabular-nums tracking-tight">৳{m.total.toLocaleString()}</div>
+              <div className="text-xl font-black text-slate-900 dark:text-white tabular-nums tracking-tight">{currency}{m.total.toLocaleString()}</div>
               <div className="mt-3 h-1.5 w-full bg-slate-100 dark:bg-[#09090B] rounded-full overflow-hidden">
                 <motion.div 
                    initial={{ width: 0 }}
@@ -173,7 +174,7 @@ export function Dashboard({ user }: { user: User }) {
                   "font-black tracking-tight tabular-nums",
                   t.type === 'income' ? "text-[#34D399]" : "text-[#F43F5E]"
                 )}>
-                  {t.type === 'income' ? '+' : '-'}৳{t.amount.toLocaleString()}
+                  {t.type === 'income' ? '+' : '-'}{currency}{t.amount.toLocaleString()}
                 </div>
               </motion.div>
             ))

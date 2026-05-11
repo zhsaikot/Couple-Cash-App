@@ -103,3 +103,34 @@ export function useDebts(coupleId: string | null) {
 
   return { debts, loading };
 }
+
+export function useRepayments(coupleId: string | null, debtId: string | null) {
+  const [repayments, setRepayments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!coupleId || !debtId) {
+      setLoading(false);
+      setRepayments([]);
+      return;
+    }
+
+    const q = query(
+      collection(db, 'couples', coupleId, 'debts', debtId, 'repayments'),
+      orderBy('date', 'desc')
+    );
+
+    const unsub = onSnapshot(q, (snap) => {
+      setRepayments(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setLoading(false);
+    }, (error) => {
+      // It's possible the subcollection doesn't exist yet, which is fine
+      setRepayments([]);
+      setLoading(false);
+    });
+
+    return () => unsub();
+  }, [coupleId, debtId]);
+
+  return { repayments, loading };
+}
